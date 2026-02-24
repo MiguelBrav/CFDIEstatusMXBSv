@@ -1,5 +1,6 @@
 ﻿using CFDIEstatusMXBSv.Interfaces;
 using CFDIEstatusMXBSv.Models;
+using CFDIEstatusMXBSv.Utils;
 
 namespace CFDIEstatusMXBSv.Services;
 
@@ -10,11 +11,8 @@ public class MockConsultaCFDIService : IConsultaCFDIService
     public  async Task<ConsultaCFDIResponse> ConsultarAsync(ConsultaModel expresion)
     {
         await Task.Delay(500);
-
-        if (string.IsNullOrWhiteSpace(expresion.Emisor) ||
-            string.IsNullOrWhiteSpace(expresion.Receptor) ||
-            expresion.Total <= 0 ||
-            string.IsNullOrWhiteSpace(expresion.Id))
+        if (!ValidationUtils.IsValidRfc(expresion.Emisor) || !ValidationUtils.IsValidRfc(expresion.Receptor) ||
+            expresion.Total <= 0 || !ValidationUtils.IsValidUuidOrFolio(expresion.Id) || !ValidationUtils.IsValidFE(expresion.FE))
         {
             return await Task.FromResult(new ConsultaCFDIResponse
             {

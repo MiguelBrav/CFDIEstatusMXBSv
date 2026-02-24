@@ -23,6 +23,7 @@ else
 
     builder.Services.AddScoped<IConsultaCFDIService, ConsultaCFDIService>();
 }
+builder.Services.AddScoped<IXmlImportaService, XmlImportaService>();
 
 
 // Add services to the container.

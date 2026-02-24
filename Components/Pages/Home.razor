@@ -2,10 +2,12 @@
 @rendermode InteractiveServer
 @using CFDIEstatusMXBSv.Interfaces
 @using CFDIEstatusMXBSv.Models
+@using Microsoft.AspNetCore.Components.Forms
 
 <PageTitle>CFDI Estatus MX</PageTitle>
 
 @inject IConsultaCFDIService ConsultaService
+@inject IXmlImportaService XmlImportService
 
 <div class="d-flex align-items-center justify-content-center min-vh-100 bg-light bg-gradient py-5">
 
@@ -76,7 +78,61 @@
                             <span><i class="bi bi-search me-2"></i>Validar Estatus Ahora</span>
                         }
                     </button>
+
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" @onclick="OpenImportModal">
+                            <i class="bi bi-file-earmark-arrow-up me-2"></i> Importar XML
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" @onclick="ClearForm">
+                            <i class="bi bi-trash me-2"></i> Limpiar formulario
+                        </button>
+                    </div>
                 </EditForm>
+
+                @if (showImportModal)
+                {
+                    <div class="modal-backdrop fade show"></div>
+                    <div class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.4);">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Importar CFDI desde XML</h5>
+                                    <button type="button" class="btn-close" aria-label="Cerrar" @onclick="CloseImportModal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <InputFile OnChange="HandleFileSelected" accept=".xml,application/xml" />
+
+                                    @if (erroresImportacion?.Count > 0)
+                                    {
+                                        <div class="alert alert-danger mt-3">
+                                            <ul class="mb-0">
+                                                @foreach (var err in erroresImportacion)
+                                                {
+                                                    <li>@err</li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    }
+
+                                    @if (vistaPreviaImport is not null)
+                                    {
+                                        <div class="mt-3">
+                                            <div><strong>Emisor:</strong> @vistaPreviaImport.Emisor</div>
+                                            <div><strong>Receptor:</strong> @vistaPreviaImport.Receptor</div>
+                                            <div><strong>Total:</strong> @vistaPreviaImport.Total</div>
+                                            <div><strong>UUID:</strong> @vistaPreviaImport.Id</div>
+                                            <div><strong>FE (últimos 8):</strong> @vistaPreviaImport.FE</div>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" @onclick="CloseImportModal">Cancelar</button>
+                                    <button class="btn btn-primary" @onclick="LoadPreviewToForm" disabled="@((vistaPreviaImport is null) || (erroresImportacion?.Count > 0))">Cargar en formulario</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
 
                 @if (respuesta is not null && !string.IsNullOrWhiteSpace(respuesta.CodigoEstatus))
                 {
@@ -127,11 +183,73 @@
 </div>
 
 @code {
+    // Import modal state
+    private bool showImportModal = false;
+    private ConsultaModel? vistaPreviaImport;
+    private List<string>? erroresImportacion;
+
     [SupplyParameterFromForm(FormName = "ConsultaCfdiForm")]
     private ConsultaModel expresion { get; set; } = new();
 
     private ConsultaCFDIResponse respuesta = new();
     private bool cargando = false;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        vistaPreviaImport = null;
+        erroresImportacion = null;
+
+        var file = e.File;
+        try
+        {
+            await using var stream = file.OpenReadStream(10_000_000);
+            var (model, errors) = await XmlImportService.ParseXmlAsync(stream);
+            vistaPreviaImport = model;
+            erroresImportacion = errors;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            erroresImportacion = new List<string> { "Error al leer archivo: " + ex.Message };
+        }
+    }
+
+    private void CloseImportModal()
+    {
+        showImportModal = false;
+        vistaPreviaImport = null;
+        erroresImportacion = null;
+    }
+
+    private void OpenImportModal()
+    {
+        // Clear previous import preview/errors when opening modal
+        vistaPreviaImport = null;
+        erroresImportacion = null;
+        showImportModal = true;
+    }
+
+    private void ClearForm()
+    {
+        expresion = new ConsultaModel();
+        respuesta = new ConsultaCFDIResponse();
+        vistaPreviaImport = null;
+        erroresImportacion = null;
+        StateHasChanged();
+    }
+
+    private void LoadPreviewToForm()
+    {
+        if (vistaPreviaImport is null) return;
+
+        expresion.Emisor = vistaPreviaImport.Emisor;
+        expresion.Receptor = vistaPreviaImport.Receptor;
+        expresion.Total = vistaPreviaImport.Total;
+        expresion.Id = vistaPreviaImport.Id;
+        expresion.FE = vistaPreviaImport.FE;
+
+        showImportModal = false;
+    }
 
     private async Task ConsultarDatos()
     {

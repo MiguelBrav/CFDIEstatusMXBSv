@@ -1,5 +1,6 @@
 ﻿using CFDIEstatusMXBSv.Interfaces;
 using CFDIEstatusMXBSv.Models;
+using CFDIEstatusMXBSv.Utils;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Xml.Linq;
@@ -20,6 +21,18 @@ public class ConsultaCFDIService : IConsultaCFDIService
 
     public async Task<ConsultaCFDIResponse> ConsultarAsync(ConsultaModel expresion)
     {
+        if (!ValidationUtils.IsValidRfc(expresion.Emisor) || !ValidationUtils.IsValidRfc(expresion.Receptor) ||
+            expresion.Total <= 0 || !ValidationUtils.IsValidUuidOrFolio(expresion.Id) || !ValidationUtils.IsValidFE(expresion.FE))
+        {
+            return new ConsultaCFDIResponse
+            {
+                CodigoEstatus = "N – 601: La expresión impresa proporcionada no es válida.",
+                Estatus = string.Empty,
+                EsCancelable = string.Empty,
+                EstatusCancelacion = null
+            };
+        }
+
         var soapEnvelope = $@"
         <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'
                           xmlns:tem='http://tempuri.org/'>
