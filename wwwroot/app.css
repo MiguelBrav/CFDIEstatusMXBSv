@@ -58,3 +58,15 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* Mobile adjustments */
+@media (max-width: 576px) {   
+    .form-floating > .form-control::placeholder {
+        color: transparent;
+        text-align: start;
+    }
+
+    [data-mobile-hide="true"] {
+        display: none !important;
+    }
+}
