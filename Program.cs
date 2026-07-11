@@ -1,9 +1,11 @@
 using CFDIEstatusMXBSv.Components;
 using CFDIEstatusMXBSv.Interfaces;
 using CFDIEstatusMXBSv.Services;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 bool useMock = builder.Configuration.GetValue<bool>("UseMockCFDI");
+QuestPDF.Settings.License = LicenseType.Community;
 
 builder.Services.AddScoped(sp =>
 {
@@ -13,7 +15,7 @@ builder.Services.AddScoped(sp =>
     return client;
 });
 
-// Se mockea servicio ya que es solo demostración
+// Se mockea servicio ya que es solo demostraciÃ³n
 if (useMock)
 {
     builder.Services.AddScoped<IConsultaCFDIService, MockConsultaCFDIService>();
@@ -24,6 +26,7 @@ else
     builder.Services.AddScoped<IConsultaCFDIService, ConsultaCFDIService>();
 }
 builder.Services.AddScoped<IXmlImportaService, XmlImportaService>();
+builder.Services.AddScoped<PdfService>();
 
 
 // Add services to the container.

@@ -1,13 +1,17 @@
-﻿@page "/"
+@page "/"
 @rendermode InteractiveServer
 @using CFDIEstatusMXBSv.Interfaces
 @using CFDIEstatusMXBSv.Models
+@using CFDIEstatusMXBSv.Services
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
 
 <PageTitle>CFDI Estatus MX</PageTitle>
 
 @inject IConsultaCFDIService ConsultaService
 @inject IXmlImportaService XmlImportService
+@inject PdfService PdfService
+@inject IJSRuntime JS
 
 <div class="d-flex align-items-center justify-content-center min-vh-100 bg-light bg-gradient py-5">
 
@@ -85,6 +89,9 @@
                         </button>
                         <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" @onclick="ClearForm">
                             <i class="bi bi-trash me-2"></i> Limpiar formulario
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" @onclick="GenerarPdf" disabled="@(!PuedeGenerarPdf)">
+                            <i class="bi bi-file-earmark-pdf me-2"></i> Descargar PDF
                         </button>
                     </div>
                 </EditForm>
@@ -193,6 +200,12 @@
 
     private ConsultaCFDIResponse respuesta = new();
     private bool cargando = false;
+    private bool PuedeGenerarPdf =>
+        !string.IsNullOrWhiteSpace(expresion.Emisor)
+        && !string.IsNullOrWhiteSpace(expresion.Receptor)
+        && expresion.Total > 0
+        && !string.IsNullOrWhiteSpace(expresion.Id)
+        && !string.IsNullOrWhiteSpace(expresion.FE);
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
@@ -265,6 +278,21 @@
         }
     }
 
+
+    private async Task GenerarPdf()
+    {
+        if (!PuedeGenerarPdf)
+        {
+            return;
+        }
+
+        var resultadoConsulta = string.IsNullOrWhiteSpace(respuesta.CodigoEstatus) ? null : respuesta;
+        var pdfBytes = PdfService.GenerarConsultaPdf(expresion, resultadoConsulta);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        var identificadorUnico = Guid.NewGuid().ToString("N")[..8];
+
+        await JS.InvokeVoidAsync("downloadFile", $"consulta-{identificadorUnico}.pdf", base64);
+    }
     // Helpers
     private string ObtenerColorEstatus(string estatus)
     {
