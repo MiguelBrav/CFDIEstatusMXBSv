@@ -54,7 +54,7 @@ Autor: Miguel Segura
 
 https://cfdiestatus.segurab.com/
 
-![App Screenshot](https://res.cloudinary.com/imgresd/image/upload/v1770872126/Github/CFDIExample_ju6tsb.png)
+![App Screenshot](https://res.cloudinary.com/imgresd/image/upload/v1787527986/Github/CFDICAP01_xchlwz.png)
 
 ---
 
@@ -114,5 +114,5 @@ Author: Miguel Segura
 
 https://cfdiestatus.segurab.com/
 
-![App Screenshot](https://res.cloudinary.com/imgresd/image/upload/v1770872126/Github/CFDIExample_ju6tsb.png)
+![App Screenshot](https://res.cloudinary.com/imgresd/image/upload/v1787527986/Github/CFDICAP02_zjqvao.png)
 
