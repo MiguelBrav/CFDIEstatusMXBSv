@@ -5,6 +5,7 @@
 @using CFDIEstatusMXBSv.Services
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
+@using System.Text.Json
 
 <PageTitle>CFDI Estatus MX</PageTitle>
 
@@ -87,6 +88,9 @@
                         <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" @onclick="OpenImportModal">
                             <i class="bi bi-file-earmark-arrow-up me-2"></i> Importar XML
                         </button>
+                        <button type="button" class="btn btn-outline-info btn-sm rounded-pill" @onclick="OpenHistoricoModal">
+                            <i class="bi bi-clock-history me-2"></i> Ver Histórico (@historicoConsultas.Count)
+                        </button>
                         <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" @onclick="ClearForm">
                             <i class="bi bi-trash me-2"></i> Limpiar formulario
                         </button>
@@ -103,10 +107,18 @@
                         <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header">
-                                    <h5 class="modal-title">Importar CFDI desde XML</h5>
+                                    <h5 class="modal-title">
+                                        <i class="bi bi-file-earmark-arrow-up me-2"></i>Importar CFDI desde XML
+                                    </h5>
                                     <button type="button" class="btn-close" aria-label="Cerrar" @onclick="CloseImportModal"></button>
                                 </div>
+
                                 <div class="modal-body">
+                                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <strong>Selecciona un archivo XML</strong> para cargar datos automáticamente en el formulario.
+                                    </div>
+
                                     <InputFile OnChange="HandleFileSelected" accept=".xml,application/xml" />
 
                                     @if (erroresImportacion?.Count > 0)
@@ -123,18 +135,109 @@
 
                                     @if (vistaPreviaImport is not null)
                                     {
-                                        <div class="mt-3">
-                                            <div><strong>Emisor:</strong> @vistaPreviaImport.Emisor</div>
-                                            <div><strong>Receptor:</strong> @vistaPreviaImport.Receptor</div>
-                                            <div><strong>Total:</strong> @vistaPreviaImport.Total</div>
+                                        <div class="mt-3 p-3 bg-light rounded">
+                                            <h6 class="text-secondary mb-3"><i class="bi bi-preview me-2"></i>Vista Previa</h6>
+                                            <div><strong>RFC Emisor:</strong> @vistaPreviaImport.Emisor</div>
+                                            <div><strong>RFC Receptor:</strong> @vistaPreviaImport.Receptor</div>
+                                            <div><strong>Total:</strong> @vistaPreviaImport.Total.ToString("C2")</div>
                                             <div><strong>UUID:</strong> @vistaPreviaImport.Id</div>
-                                            <div><strong>FE (últimos 8):</strong> @vistaPreviaImport.FE</div>
+                                            <div><strong>Sello FE (últimos 8):</strong> @vistaPreviaImport.FE</div>
                                         </div>
                                     }
                                 </div>
+
                                 <div class="modal-footer">
-                                    <button class="btn btn-secondary" @onclick="CloseImportModal">Cancelar</button>
-                                    <button class="btn btn-primary" @onclick="LoadPreviewToForm" disabled="@((vistaPreviaImport is null) || (erroresImportacion?.Count > 0))">Cargar en formulario</button>
+                                    <button class="btn btn-secondary" @onclick="CloseImportModal">Cerrar</button>
+                                    <button class="btn btn-primary" @onclick="LoadPreviewToForm" disabled="@((vistaPreviaImport is null) || (erroresImportacion?.Count > 0))">
+                                        <i class="bi bi-check-lg me-1"></i>Cargar en formulario
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- MODAL SEPARADA: HISTÓRICO -->
+                @if (showHistoricoModal)
+                {
+                    <div class="modal-backdrop fade show"></div>
+                    <div class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.4);">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-info text-white">
+                                    <h5 class="modal-title">
+                                        <i class="bi bi-clock-history me-2"></i>Histórico de Consultas
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" aria-label="Cerrar" @onclick="CloseHistoricoModal"></button>
+                                </div>
+
+                                <div class="modal-body">
+                                    @if (historicoConsultas.Count == 0)
+                                    {
+                                        <div class="text-center text-muted py-5">
+                                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                            <p class="mb-1"><strong>No hay consultas en el histórico</strong></p>
+                                            <small>Los CFDIs validados contra el SAT aparecerán aquí</small>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>UUID</th>
+                                                        <th>Emisor</th>
+                                                        <th>Total</th>
+                                                        <th>Estado</th>
+                                                        <th>Fecha</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var consulta in historicoConsultas.OrderByDescending(x => x.FechaConsulta))
+                                                    {
+                                                        var colorEstatus = ObtenerColorEstatus(consulta.Estatus);
+                                                        <tr>
+                                                            <td>
+                                                                <small class="text-monospace" title="@consulta.Id">@consulta.Id?.Substring(0, Math.Min(8, consulta.Id.Length))...</small>
+                                                            </td>
+                                                            <td>
+                                                                <small>@consulta.Emisor</small>
+                                                            </td>
+                                                            <td>
+                                                                <small>@consulta.Total.ToString("C2")</small>
+                                                            </td>
+                                                            <td>
+                                                                @if (string.IsNullOrEmpty(consulta.Estatus))
+                                                                {
+                                                                    <span class="badge bg-secondary">Sin consultar</span>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="badge bg-@colorEstatus">@consulta.Estatus</span>
+                                                                }
+                                                            </td>
+                                                            <td>
+                                                                <small>@consulta.FechaConsulta.ToString("dd/MM/yyyy HH:mm")</small>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="LimpiarHistorico" disabled="@(historicoConsultas.Count == 0)">
+                                        <i class="bi bi-trash me-1"></i>Limpiar histórico
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="ExportarHistoricoCSV" disabled="@(historicoConsultas.Count == 0)">
+                                        <i class="bi bi-download me-1"></i>Exportar CSV
+                                    </button>
+                                    <button class="btn btn-secondary" @onclick="CloseHistoricoModal">
+                                        <i class="bi bi-x-lg me-1"></i>Cerrar
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -192,8 +295,10 @@
 @code {
     // Import modal state
     private bool showImportModal = false;
+    private bool showHistoricoModal = false;
     private ConsultaModel? vistaPreviaImport;
     private List<string>? erroresImportacion;
+    private List<ConsultaCFDIHistorico> historicoConsultas = new();
 
     [SupplyParameterFromForm(FormName = "ConsultaCfdiForm")]
     private ConsultaModel expresion { get; set; } = new();
@@ -206,6 +311,24 @@
         && expresion.Total > 0
         && !string.IsNullOrWhiteSpace(expresion.Id)
         && !string.IsNullOrWhiteSpace(expresion.FE);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarHistorico();
+    }
+
+    private async Task CargarHistorico()
+    {
+        try
+        {
+            historicoConsultas = await JS.InvokeAsync<List<ConsultaCFDIHistorico>>("localStorageService.obtenerHistorico") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando histórico: {ex.Message}");
+            historicoConsultas = new();
+        }
+    }
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
@@ -242,6 +365,16 @@
         showImportModal = true;
     }
 
+    private void CloseHistoricoModal()
+    {
+        showHistoricoModal = false;
+    }
+
+    private void OpenHistoricoModal()
+    {
+        showHistoricoModal = true;
+    }
+
     private void ClearForm()
     {
         expresion = new ConsultaModel();
@@ -271,6 +404,26 @@
         try
         {
             respuesta = await ConsultaService.ConsultarAsync(expresion);
+
+            // Guardar en histórico solo si la consulta fue exitosa
+            if (!string.IsNullOrWhiteSpace(respuesta.CodigoEstatus))
+            {
+                var historico = new ConsultaCFDIHistorico
+                {
+                    Id = expresion.Id,
+                    Emisor = expresion.Emisor,
+                    Receptor = expresion.Receptor,
+                    Total = expresion.Total,
+                    FE = expresion.FE,
+                    CodigoEstatus = respuesta.CodigoEstatus,
+                    Estatus = respuesta.Estatus,
+                    EsCancelable = respuesta.EsCancelable,
+                    EstatusCancelacion = respuesta.EstatusCancelacion,
+                    FechaConsulta = DateTime.Now
+                };
+
+                await GuardarEnHistorico(historico);
+            }
         }
         finally
         {
@@ -278,6 +431,52 @@
         }
     }
 
+    private async Task GuardarEnHistorico(ConsultaCFDIHistorico historico)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localStorageService.guardarConsultaHistorico", historico);
+            await CargarHistorico();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error guardando en histórico: {ex.Message}");
+        }
+    }
+
+    private async Task ExportarHistoricoCSV()
+    {
+        try
+        {
+            var csv = await JS.InvokeAsync<string>("localStorageService.exportarACSV");
+            if (!string.IsNullOrEmpty(csv))
+            {
+                await JS.InvokeVoidAsync("localStorageService.descargarCSV", csv);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exportando a CSV: {ex.Message}");
+        }
+    }
+
+    private async Task LimpiarHistorico()
+    {
+        if (await JS.InvokeAsync<bool>("window.confirm", "¿Está seguro de que desea limpiar todo el histórico?"))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("localStorageService.limpiarHistorico");
+                await CargarHistorico();
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error limpiando histórico: {ex.Message}");
+            }
+        }
+    }
 
     private async Task GenerarPdf()
     {
